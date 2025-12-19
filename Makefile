@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -Iinclude
 
-SRC = src/main.cpp
+SRC = src/main.cpp src/repository.cpp
 TARGET = mvc
 
 # Default rule: just typing 'make' runs this

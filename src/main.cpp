@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include "repository.h"
 
 void print_help();
 
@@ -22,9 +23,12 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     else if (command == "init"){
-        std::cout << "init recognised.. \n";
-        std::cout << "not yet implemented \n";
-        return 0;
+        if(init_repository()){
+            return 0;
+        }
+        else{
+            return 1;
+        }
     }
     else{
         std::cerr << "unknown command " << command << "\n";
