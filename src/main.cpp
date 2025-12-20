@@ -38,24 +38,26 @@ int main(int argc, char* argv[]) {
         }
         std::string file_path = args[1];
         try{
-            std::string data = utils::read_file(file_path);
-
-            std::string header = "blob " + std::to_string(data.size()) + '\0';
-            std::string store_data = header + data;
-
-            std::string hash = utils::sha1(store_data);
-
-            std::string compressed_data = utils::compress(store_data);
-
-            std::string dir_name = hash.substr(0,2);
-            std::string file_name = hash.substr(2);
-            std::string object_path = ".mvc/objects/" + dir_name + "/" + file_name;
-
-            utils::write_file(object_path, compressed_data);
+            std::string hash = store_blob(file_path);
             std::cout << hash << "\n";
         }
         catch(const std::exception& e){
             std::cerr << "Error: "<< e.what() << "\n";
+            return 1;
+        }
+    }
+    else if (command == "write-tree") {
+        try {
+            // Default to "." if no argument provided
+            std::string path = ".";
+            if (args.size() > 1) {
+                path = args[1];
+            }
+            
+            std::string hash = write_tree(path);
+            std::cout << hash << "\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
             return 1;
         }
     }

@@ -45,6 +45,16 @@ namespace utils {
 
     }
 
+    std::string hex_to_bytes(const std::string& hex){
+        std::string bytes;
+        for(unsigned int i = 0; i < hex.length(); i+=2){
+            std::string byteString = hex.substr(i,2);
+            char byte = (char) strtol(byteString.c_str(), nullptr, 16);
+            bytes.push_back(byte);
+        }
+        return bytes;
+    }
+
     std::string compress(const std::string& data){
         z_stream zs;
         zs.zalloc = Z_NULL;

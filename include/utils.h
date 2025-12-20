@@ -11,6 +11,8 @@ namespace utils {
 
     std::string sha1(const std::string& data);
     //better name be hash than sha1
+
+    std:: string hex_to_bytes(const std::string& hex);
     std::string compress(const std::string& data);
 
     std::string decompress(const std::string& data);
