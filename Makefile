@@ -3,7 +3,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -Iinclude
 
 LIBS = -lssl -lcrypto -lz
 
-SRC = src/main.cpp src/repository.cpp src/utils.cpp
+SRC = src/main.cpp src/repository.cpp src/utils.cpp src/commit.cpp
 TARGET = mvc
 
 # Default rule: just typing 'make' runs this

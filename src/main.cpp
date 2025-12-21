@@ -3,6 +3,7 @@
 #include <string>
 #include "repository.h"
 #include "utils.h"
+#include "commit.h"
 
 void print_help();
 
@@ -61,6 +62,26 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
+    else if(command == "commit"){
+        if (args.size() < 3 || args[1] != "-m"){
+            std::cerr << "Usage: mvc commit -m <message>\n";
+            return 1;
+        }
+
+        std::string message = args[2];
+
+        try{
+            std::string tree_hash = write_tree(".");
+            std::string commit_hash = commit_tree(tree_hash, message);
+
+            std::cout  << "[" << commit_hash << "] " << message << "\n";
+        }
+        catch(const std::exception& e){
+            std::cerr << "Error: "<< e.what() << "\n";
+            return 1;
+        }
+    }
+
     else{
         std::cerr << "unknown command " << command << "\n";
         std::cerr << "run ./mvc --help \n";

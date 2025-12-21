@@ -56,7 +56,8 @@ std::string write_tree(const std::string& path){
         }
 
         entries.push_back(tree_entry);
-
+        
+        // debug statement
         std::cout << "DEBUG: Added " << name << " (" << tree_entry.mode << ")\n";
     }
 
