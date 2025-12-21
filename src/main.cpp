@@ -4,6 +4,7 @@
 #include "repository.h"
 #include "utils.h"
 #include "commit.h"
+#include "log.h"
 
 void print_help();
 
@@ -78,6 +79,16 @@ int main(int argc, char* argv[]) {
         }
         catch(const std::exception& e){
             std::cerr << "Error: "<< e.what() << "\n";
+            return 1;
+        }
+    }
+
+    else if(command == "log"){
+        try{
+            log_history();
+        } 
+        catch(const std::exception& e){
+            std::cerr << "Error: " << e.what() << "\n";
             return 1;
         }
     }
