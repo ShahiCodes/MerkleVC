@@ -41,13 +41,21 @@ std::string get_parent_commit() {
     return "";
 }
 
-void update_head(const std::string& commit_hash){
+void update_head(const std::string& commit_hash) {
     std::string ref_path = get_head_ref_path();
-
-    fs::create_directories(fs::path(ref_path).parent_path());
-
-    std::ofstream file(ref_path);
-    file << commit_hash << "\n";
+    
+    if (ref_path.empty()) {
+        // Case 1: Detached HEAD (We are not on a branch)
+        // Just update HEAD to point to the new commit directly.
+        utils::write_file(".mvc/HEAD", commit_hash);
+    } else {
+        // Case 2: Attached HEAD (We are on a branch like master)
+        // Update the branch pointer file (e.g., .mvc/refs/heads/master)
+        fs::create_directories(fs::path(ref_path).parent_path());
+        
+        std::ofstream file(ref_path);
+        file << commit_hash << "\n";
+    }
 }
 
 std::string commit_tree(const std::string& tree_sha, const std::string& message){
