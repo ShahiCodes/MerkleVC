@@ -82,6 +82,57 @@ std::string write_tree(const std::string& path){
     return tree_sha1;
 }
 
+std::string get_tree_from_commit(const std::string& commit_hash){
+    if(commit_hash.empty()){
+        return "";
+    }
+
+    std::string dir = commit_hash.substr(0, 2);
+    std::string file = commit_hash.substr(2);
+    std::string path = ".mvc/objects/" + dir + "/" + file;
+    
+    if (!fs::exists(path)) return "";
+    
+    std::string compressed = utils::read_file(path);
+    std::string raw = utils::decompress(compressed);
+
+    size_t tree_pos = raw.find("tree ");
+    if (tree_pos == std::string::npos) return "";
+    
+    return raw.substr(tree_pos + 5, 40);
+}
+
+bool is_work_tree_clean(){
+    std::string current_root_hash = write_tree(".");
+    std::string head_content = utils::read_file(".mvc/HEAD");
+    if(head_content.empty()) return true;
+
+    if(head_content.back() == '\n'){
+        head_content.pop_back();
+    }
+
+    std::string head_commit_hash;
+    if (head_content.rfind("ref: ", 0) == 0){
+        std::string ref_path = ".mvc/" + head_content.substr(5);
+        if(fs::exists(ref_path)){
+            head_commit_hash = utils::read_file(ref_path);
+            if(!head_commit_hash.empty() && head_commit_hash.back() == '\n'){
+                head_commit_hash.pop_back();
+            }
+        }
+    }
+    else{
+        head_commit_hash = head_content;
+    }
+
+    if(head_commit_hash.empty()){
+        return current_root_hash.empty();
+    }
+
+    std::string head_tree_hash = get_tree_from_commit(head_commit_hash);
+    return current_root_hash == head_tree_hash;
+}
+
 
 bool init_repository() {
     const std::string root_dir = ".mvc";

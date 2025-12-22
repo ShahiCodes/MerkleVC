@@ -7,4 +7,6 @@ bool init_repository();
 std::string store_blob(const std::string& data);
 std::string write_tree(const std::string& path);
 
+bool is_work_tree_clean();
+
 #endif

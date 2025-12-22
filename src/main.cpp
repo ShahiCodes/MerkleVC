@@ -4,6 +4,7 @@
 #include "repository.h"
 #include "utils.h"
 #include "commit.h"
+#include "checkout.h"
 #include "log.h"
 
 void print_help();
@@ -88,6 +89,27 @@ int main(int argc, char* argv[]) {
             log_history();
         } 
         catch(const std::exception& e){
+            std::cerr << "Error: " << e.what() << "\n";
+            return 1;
+        }
+    }
+
+    else if (command == "checkout") {
+        if (args.size() < 2) {
+            std::cerr << "Usage: mvc checkout <commit_hash>\n";
+            return 1;
+        }
+
+        if (!is_work_tree_clean()) {
+            std::cerr << "Error: Your changes to the local files would be overwritten by checkout.\n";
+            std::cerr << "Please commit your changes first.\n";
+            return 1;
+        }
+        
+        std::string commit_hash = args[1];
+        try {
+            checkout(commit_hash);
+        } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << "\n";
             return 1;
         }
