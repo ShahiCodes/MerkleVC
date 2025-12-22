@@ -122,5 +122,6 @@ void checkout(const std::string& commit_hash){
     std::cout << "Checking out Tree: " << tree_hash << std::endl;
 
     restore_tree(tree_hash, "");
+    utils::write_file(".mvc/HEAD", commit_hash);
     std::cout << "Done \n";
 }
