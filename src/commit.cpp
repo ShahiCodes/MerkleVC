@@ -28,16 +28,26 @@ std::string get_head_ref_path() {
 }
 
 std::string get_parent_commit() {
-    std::string ref_path = get_head_ref_path();
+    // 1. Read .mvc/HEAD
+    std::string head_content = utils::read_file(".mvc/HEAD");
+    if (head_content.empty()) return "";
+    
+    if (head_content.back() == '\n') head_content.pop_back();
 
-    if(fs::exists(ref_path)){
-        std::string commit_hash = utils::read_file(ref_path);
-        if(!commit_hash.empty() && commit_hash.back() == '\n'){
-            commit_hash.pop_back();
+    // 2. Case A: It's a Branch (e.g., "ref: refs/heads/master")
+    if (head_content.rfind("ref: ", 0) == 0) {
+        std::string ref_path = ".mvc/" + head_content.substr(5);
+        if (fs::exists(ref_path)) {
+            std::string hash = utils::read_file(ref_path);
+            if (!hash.empty() && hash.back() == '\n') hash.pop_back();
+            return hash;
         }
-        return commit_hash;
-
+    } 
+    // 3. Case B: It's a Detached Hash (e.g., "9acfa3...")
+    else {
+        return head_content;
     }
+
     return "";
 }
 
