@@ -2,6 +2,7 @@
 #include "utils.h"
 #include <iostream>
 #include <vector>
+#include <set>
 #include <sstream>
 #include <filesystem>
 #include <iomanip>
@@ -14,6 +15,69 @@ std::string bytes_to_hex(const std::string& bytes){
         ss << std::hex << std::setw(2) << std::setfill('0') << (int)c;
     }
     return ss.str();
+}
+
+void collect_files_in_tree(const std::string& tree_hash, const std::string& current_path, std::set<std::string>& files) {
+    std::string dir = tree_hash.substr(0, 2);
+    std::string file = tree_hash.substr(2);
+    std::string object_path = ".mvc/objects/" + dir + "/" + file;
+    
+    if (!fs::exists(object_path)) return;
+
+    std::string compressed = utils::read_file(object_path);
+    std::string raw = utils::decompress(compressed);
+    
+    // Strip header
+    size_t null_pos = raw.find('\0');
+    if (null_pos == std::string::npos) return;
+    std::string body = raw.substr(null_pos + 1);
+    
+    size_t cursor = 0;
+    while (cursor < body.size()) {
+        // Mode
+        size_t space_pos = body.find(' ', cursor);
+        if (space_pos == std::string::npos) break;
+        std::string mode = body.substr(cursor, space_pos - cursor);
+        cursor = space_pos + 1;
+        
+        // Name
+        size_t null_byte = body.find('\0', cursor);
+        if (null_byte == std::string::npos) break;
+        std::string name = body.substr(cursor, null_byte - cursor);
+        cursor = null_byte + 1;
+        
+        // Hash
+        std::string raw_hash = body.substr(cursor, 20);
+        std::string hash_hex = bytes_to_hex(raw_hash);
+        cursor += 20;
+        
+        // Path
+        std::string full_path = current_path.empty() ? name : current_path + "/" + name;
+        
+        if (mode == "40000") {
+            // Recurse into directory
+            collect_files_in_tree(hash_hex, full_path, files);
+        } else {
+            // Record file path
+            files.insert(full_path);
+        }
+    }
+}
+
+std::string get_tree_hash_from_commit(const std::string& commit_hash) {
+    std::string dir = commit_hash.substr(0, 2);
+    std::string file = commit_hash.substr(2);
+    std::string path = ".mvc/objects/" + dir + "/" + file;
+    
+    if (!fs::exists(path)) return "";
+    
+    std::string compressed = utils::read_file(path);
+    std::string raw = utils::decompress(compressed);
+    
+    size_t tree_pos = raw.find("tree ");
+    if (tree_pos == std::string::npos) return "";
+    
+    return raw.substr(tree_pos + 5, 40);
 }
 
 void restore_tree(const std::string& tree_hash, const std::string& current_path);
@@ -97,31 +161,54 @@ void restore_tree(const std::string& tree_hash, const std::string& current_path)
     }
 }
 
-void checkout(const std::string& commit_hash){
-    std::string dir = commit_hash.substr(0,2);
-    std::string file = commit_hash.substr(2);
-    std::string path = ".mvc/objects/" + dir + "/" + file;
+void checkout(const std::string& target_commit_hash){
 
-    if(!fs::exists(path)){
-        std::cerr << "Error: Commit " << commit_hash << " not found.\n";
-        return ;
-    }
-
-    std::string compressed = utils::read_file(path);
-    std::string raw = utils::decompress(compressed);
-
-    size_t tree_pos = raw.find("tree ");
-    if(tree_pos == std::string::npos){
-        std::cerr << "Error: Invalid commit object (no Tree found).\n";
+    std::string target_tree_hash = get_tree_hash_from_commit(target_commit_hash);
+    if (target_tree_hash.empty()) {
+        std::cerr << "Error: Invalid target commit.\n";
         return;
     }
+    std::set<std::string> head_files;
 
-    size_t hash_start = tree_pos + 5;
-    std::string tree_hash = raw.substr(hash_start, 40);
+    std::string head_content = utils::read_file(".mvc/HEAD");
+    if (!head_content.empty()) {
+        if (head_content.back() == '\n') head_content.pop_back();
+        std::string current_commit_hash;
+        
+        if (head_content.rfind("ref: ", 0) == 0) {
+            std::string ref_path = ".mvc/" + head_content.substr(5);
+            if (fs::exists(ref_path)) {
+                current_commit_hash = utils::read_file(ref_path);
+                if (!current_commit_hash.empty() && current_commit_hash.back() == '\n') 
+                    current_commit_hash.pop_back();
+            }
+        } else {
+            current_commit_hash = head_content;
+        }
+        if (!current_commit_hash.empty()) {
+            std::string current_tree_hash = get_tree_hash_from_commit(current_commit_hash);
+            if (!current_tree_hash.empty()) {
+                collect_files_in_tree(current_tree_hash, "", head_files);
+            }
+        }
+    }
 
-    std::cout << "Checking out Tree: " << tree_hash << std::endl;
+    std::set<std::string> target_files;
+    collect_files_in_tree(target_tree_hash, "", target_files);
 
-    restore_tree(tree_hash, "");
-    utils::write_file(".mvc/HEAD", commit_hash);
+    // 3. DELETE Step: Remove files that are in HEAD but not in Target
+    for (const auto& file : head_files) {
+        if (target_files.find(file) == target_files.end()) {
+            if (fs::exists(file)) {
+                std::cout << "Deleting stale file: " << file << "\n";
+                fs::remove(file);
+            }
+        }
+    }
+
+    std::cout << "Checking out Tree: " << target_tree_hash << std::endl;
+
+    restore_tree(target_tree_hash, "");
+    utils::write_file(".mvc/HEAD", target_commit_hash);
     std::cout << "Done \n";
 }
