@@ -4,7 +4,7 @@
 #include "repository.h"
 #include "utils.h"
 #include "commit.h"
-#include "checkout.h"
+#include "restore.h"
 #include "log.h"
 
 void print_help();
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
     const std::string command = args[0];
 
-    if(command == "--help"){
+    if(command == "--help" || command == "help" || command == "-h"){
         print_help();
         return 0;
     }
@@ -94,21 +94,21 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    else if (command == "checkout") {
+    else if (command == "restore") {
         if (args.size() < 2) {
-            std::cerr << "Usage: mvc checkout <commit_hash>\n";
+            std::cerr << "Usage: mvc restore <commit_hash>\n";
             return 1;
         }
 
         if (!is_work_tree_clean()) {
-            std::cerr << "Error: Your changes to the local files would be overwritten by checkout.\n";
+            std::cerr << "Error: Your changes to the local files would be overwritten by restore.\n";
             std::cerr << "Please commit your changes first.\n";
             return 1;
         }
         
         std::string commit_hash = args[1];
         try {
-            checkout(commit_hash);
+            restore(commit_hash);
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << "\n";
             return 1;
@@ -125,11 +125,18 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void print_help(){
-    std::cout << "MerkleVC (mvc) - A simple C++ version control system\n\n";
-    std::cout << "Usage:\n";
-    std::cout << "  mvc <command> [options]\n\n";
-    std::cout << "Commands:\n";
-    std::cout << "  init        Initialize a new repository\n";
-    std::cout << "  --help      Show this help message\n";
+void print_help() {
+    std::cout << "MerkleVC - A Merkle DAG Version Control System\n";
+    std::cout << "Usage: mvc <command> [<args>]\n\n";
+    std::cout << "High-Level Commands (Porcelain):\n";
+    std::cout << "   init                     Initialize a new repository in the current directory.\n";
+    std::cout << "   commit -m \"message\"      Snapshot the directory and save it to history.\n";
+    std::cout << "   log                      Display the commit history (hash, author, message).\n";
+    std::cout << "   restore <commit_hash>    Restore the working directory to a specific commit.\n";
+    std::cout << "   help/-h/--help           Show this help message.\n\n";
+
+    std::cout << "Low-Level Commands (Plumbing):\n";
+    std::cout << "   write-tree               Compute the tree object for the current directory.\n";
+    std::cout << "   hash-object <file>       Compute the object ID for a file and store it.\n";
+    std::cout << "\n";
 }

@@ -1,4 +1,4 @@
-#include "checkout.h"
+#include "restore.h"
 #include "utils.h"
 #include <iostream>
 #include <vector>
@@ -161,7 +161,7 @@ void restore_tree(const std::string& tree_hash, const std::string& current_path)
     }
 }
 
-void checkout(const std::string& target_commit_hash){
+void restore(const std::string& target_commit_hash){
 
     std::string target_tree_hash = get_tree_hash_from_commit(target_commit_hash);
     if (target_tree_hash.empty()) {

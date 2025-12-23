@@ -3,6 +3,6 @@
 
 #include <string>
 
-void checkout(const std::string& commit_hash);
+void restore(const std::string& commit_hash);
 
 #endif
