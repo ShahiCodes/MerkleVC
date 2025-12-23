@@ -7,6 +7,8 @@
 #include "restore.h"
 #include "log.h"
 #include "branch.h"
+#include "checkout.h"
+
 
 void print_help();
 
@@ -143,6 +145,26 @@ int main(int argc, char* argv[]) {
         }
         else {
             std::cerr << "Usage: mvc branch [name]\n";
+            return 1;
+        }
+    }
+
+    else if(command == "checkout"){
+        if (args.size() < 2) {
+            std::cerr << "Usage: mvc checkout <branch_name_or_commit_hash>\n";
+            return 1;
+        }
+
+        // Safety Guard
+        if (!is_work_tree_clean()) {
+            std::cerr << "Error: Uncommitted changes. Commit or stash them before checkout.\n";
+            return 1;
+        }
+        std::string target = args[1];
+        try {
+            checkout(target); 
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
             return 1;
         }
     }

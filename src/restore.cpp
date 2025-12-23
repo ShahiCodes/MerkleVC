@@ -161,12 +161,12 @@ void restore_tree(const std::string& tree_hash, const std::string& current_path)
     }
 }
 
-void restore(const std::string& target_commit_hash){
+bool restore(const std::string& target_commit_hash){
 
     std::string target_tree_hash = get_tree_hash_from_commit(target_commit_hash);
     if (target_tree_hash.empty()) {
         std::cerr << "Error: Invalid target commit.\n";
-        return;
+        return false;
     }
     std::set<std::string> head_files;
 
@@ -175,6 +175,7 @@ void restore(const std::string& target_commit_hash){
         if (head_content.back() == '\n') head_content.pop_back();
         std::string current_commit_hash;
         
+        // Handle Refs vs Detached
         if (head_content.rfind("ref: ", 0) == 0) {
             std::string ref_path = ".mvc/" + head_content.substr(5);
             if (fs::exists(ref_path)) {
@@ -196,7 +197,7 @@ void restore(const std::string& target_commit_hash){
     std::set<std::string> target_files;
     collect_files_in_tree(target_tree_hash, "", target_files);
 
-    // 3. DELETE Step: Remove files that are in HEAD but not in Target
+    // Remove files that are in HEAD but not in Target
     for (const auto& file : head_files) {
         if (target_files.find(file) == target_files.end()) {
             if (fs::exists(file)) {
@@ -206,9 +207,11 @@ void restore(const std::string& target_commit_hash){
         }
     }
 
-    std::cout << "Checking out Tree: " << target_tree_hash << std::endl;
+    std::cout << "Restoring Tree: " << target_tree_hash << std::endl;
 
     restore_tree(target_tree_hash, "");
     utils::write_file(".mvc/HEAD", target_commit_hash);
     std::cout << "Done \n";
+
+    return true;
 }
