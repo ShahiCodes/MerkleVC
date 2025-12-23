@@ -119,32 +119,39 @@ int main(int argc, char* argv[]) {
     }
 
     else if (command == "branch") {
+        
         if (args.size() == 1) {
             std::vector<std::string> branches = list_branches();
             
-            // Get current HEAD to show asterisk
             std::string head_content = utils::read_file(".mvc/HEAD");
+            while (!head_content.empty() && isspace(head_content.back())) head_content.pop_back();
+
             std::string current_branch = "";
             if (head_content.rfind("ref: refs/heads/", 0) == 0) {
                 current_branch = head_content.substr(16);
-                if (current_branch.back() == '\n') current_branch.pop_back();
             }
 
             for (const auto& b : branches) {
                 if (b == current_branch) {
-                    std::cout << "* \033[32m" << b << "\033[0m\n";  //green asterisk *
+                    std::cout << "* \033[32m" << b << "\033[0m\n"; 
                 } else {
                     std::cout << "  " << b << "\n";
                 }
             }
         } 
-        
         else if (args.size() == 2) {
             std::string branch_name = args[1]; 
             create_branch(branch_name);
         }
+        else if (args.size() == 3 && args[1] == "-d") {
+            std::string branch_name = args[2];
+            delete_branch(branch_name);
+        }
         else {
-            std::cerr << "Usage: mvc branch [name]\n";
+            std::cerr << "Usage: \n";
+            std::cerr << "  mvc branch              (List branches)\n";
+            std::cerr << "  mvc branch <name>       (Create branch)\n";
+            std::cerr << "  mvc branch -d <name>    (Delete branch)\n";
             return 1;
         }
     }
@@ -187,8 +194,9 @@ void print_help() {
     std::cout << "   commit -m \"message\"      Snapshot the directory and save it to history.\n";
     std::cout << "   log                      Display the commit history (hash, author, message).\n";
     std::cout << "   restore <commit_hash>    Restore the working directory to a specific commit.\n";
-    std::cout << "   branch <name>            Create a new branch.\n";
     std::cout << "   branch                   List all branches.\n";
+    std::cout << "   branch <name>            Create a new branch.\n";
+    std::cout << "   branch -d <name>         Delete a branch.\n";
     std::cout << "   help/-h/--help           Show this help message.\n\n";
 
     std::cout << "Low-Level Commands (Plumbing):\n";
