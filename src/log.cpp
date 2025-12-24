@@ -92,8 +92,6 @@ void log_history(){
             std::cerr << "Error: Object " << current_hash << " not found (repository corruption).\n";
             break;
         }
-
-        // Read and Decompress
         std::string compressed = utils::read_file(path);
         std::string raw = utils::decompress(compressed);
         std::string body = parse_object_body(raw);

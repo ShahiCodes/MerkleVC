@@ -27,38 +27,33 @@ void collect_files_in_tree(const std::string& tree_hash, const std::string& curr
     std::string compressed = utils::read_file(object_path);
     std::string raw = utils::decompress(compressed);
     
-    // Strip header
+    
     size_t null_pos = raw.find('\0');
     if (null_pos == std::string::npos) return;
     std::string body = raw.substr(null_pos + 1);
     
     size_t cursor = 0;
     while (cursor < body.size()) {
-        // Mode
+        
         size_t space_pos = body.find(' ', cursor);
         if (space_pos == std::string::npos) break;
         std::string mode = body.substr(cursor, space_pos - cursor);
         cursor = space_pos + 1;
-        
-        // Name
+         
         size_t null_byte = body.find('\0', cursor);
         if (null_byte == std::string::npos) break;
         std::string name = body.substr(cursor, null_byte - cursor);
         cursor = null_byte + 1;
-        
-        // Hash
+     
         std::string raw_hash = body.substr(cursor, 20);
         std::string hash_hex = bytes_to_hex(raw_hash);
         cursor += 20;
         
-        // Path
         std::string full_path = current_path.empty() ? name : current_path + "/" + name;
         
         if (mode == "40000") {
-            // Recurse into directory
             collect_files_in_tree(hash_hex, full_path, files);
         } else {
-            // Record file path
             files.insert(full_path);
         }
     }
