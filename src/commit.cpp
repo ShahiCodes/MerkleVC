@@ -114,6 +114,8 @@ std::string commit_tree(const std::string& tree_hash, const std::string& message
     ss << "committer " << author << " " << timestamp << "\n\n";
     ss << message << "\n";
 
+    // to-do: can implement custom set author name and committer. will do maybe.
+
     std::string content = ss.str();
     std::string header = "commit " + std::to_string(content.size()) + '\0';
     std::string store_data = header + content;

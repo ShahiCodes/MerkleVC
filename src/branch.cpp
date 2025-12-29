@@ -9,6 +9,7 @@
 namespace fs = std::filesystem;
 
 // Helper to remove trailing newlines and spaces
+// dumb error T_T
 void trim_right(std::string& s) {
     while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
         s.pop_back();

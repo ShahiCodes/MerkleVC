@@ -37,6 +37,7 @@ void checkout(const std::string& target){
         }
     } else {
         // If restore failed, do nothing. HEAD is unchanged.
+        // very important HEAD IS UNCHANGED.
         std::cerr << "Checkout failed.\n";
     }
 }

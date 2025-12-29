@@ -8,6 +8,7 @@
 #include "log.h"
 #include "branch.h"
 #include "checkout.h"
+#include "merge.h"
 
 
 void print_help();
@@ -175,6 +176,28 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
+    else if(command == "merge"){
+        if (args.size() < 2) {
+            std::cerr << "Usage: mvc merge <branch_name>\n";
+            return 1;
+        }
+
+        if (!is_work_tree_clean()) {
+            std::cerr << "Error: Uncommitted changes. Commit or stash them before merging.\n";
+            return 1;
+        }
+        std::string branch_name = args[1];
+        try {
+            if (merge_branch(branch_name)) {
+                std::cout << "Merge successful.\n";
+            } else {
+                std::cout << "Merge failed or aborted.\n";
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
+            return 1;
+        }
+    }
 
     else{
         std::cerr << "unknown command " << command << "\n";
@@ -197,6 +220,7 @@ void print_help() {
     std::cout << "   branch                   List all branches.\n";
     std::cout << "   branch <name>            Create a new branch.\n";
     std::cout << "   branch -d <name>         Delete a branch.\n";
+    std::cout << "   merge <branch>           Merge a branch into the current HEAD.\n";
     std::cout << "   help/-h/--help           Show this help message.\n\n";
 
     std::cout << "Low-Level Commands (Plumbing):\n";
