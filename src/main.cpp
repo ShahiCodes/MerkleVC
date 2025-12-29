@@ -9,6 +9,7 @@
 #include "branch.h"
 #include "checkout.h"
 #include "merge.h"
+#include "graph.h"
 
 
 void print_help();
@@ -199,6 +200,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    else if (command == "graph") {
+        show_graph();
+    }
+
     else{
         std::cerr << "unknown command " << command << "\n";
         std::cerr << "run ./mvc --help \n";
@@ -221,6 +226,7 @@ void print_help() {
     std::cout << "   branch <name>            Create a new branch.\n";
     std::cout << "   branch -d <name>         Delete a branch.\n";
     std::cout << "   merge <branch>           Merge a branch into the current HEAD.\n";
+    std::cout << "   graph                    Visualize the commit history graph.\n";
     std::cout << "   help/-h/--help           Show this help message.\n\n";
 
     std::cout << "Low-Level Commands (Plumbing):\n";
