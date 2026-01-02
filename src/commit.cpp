@@ -16,14 +16,14 @@ std::string get_current_time() {
     return std::string(buf);
 }
 
-void append_to_global_log(const std::string& hash, const std::string& message){
+void append_to_global_log(const std::string& hash, const std::string& message, std::string author){
     std::ofstream log_file(".mvc/global_log.txt", std::ios::app);
     if(log_file.is_open()){
         std::time_t now = std::time(nullptr);
         char time_buf[100];
         std::strftime(time_buf, sizeof(time_buf),"%Y-%m-%d %H:%M:%S", std::localtime(&now));
 
-        log_file << "[" << time_buf << "] " << hash << " - " << message << "\n";
+        log_file << "[" << time_buf << "] " << hash << " - " << message << " by - " << author << "\n";
         log_file.close();
     }
 }
@@ -101,7 +101,13 @@ std::string commit_tree(const std::string& tree_hash, const std::string& message
     }
 
    
-    std::string author = "Username user@example.com"; 
+    std::string author ;
+    if (std::filesystem::exists(".mvc/config")) {
+        author = utils::read_file(".mvc/config");
+        while (!author.empty() && isspace(author.back())) author.pop_back();
+    } else {
+        author = "user <user@example.com>";
+    }
     std::string timestamp = get_current_time();
 
    
@@ -142,7 +148,7 @@ std::string commit_tree(const std::string& tree_hash, const std::string& message
         utils::write_file(".mvc/HEAD", commit_hash);
     }
 
-    append_to_global_log(commit_hash, message);
+    append_to_global_log(commit_hash, message, author);
     
     return commit_hash;
 }

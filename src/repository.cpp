@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <string>
 
 namespace fs = std::filesystem;
 
@@ -143,30 +144,35 @@ bool init_repository() {
     }
 
     try{
-        if(fs::create_directories(root_dir)){
-            fs::create_directories(root_dir + "/objects");
-            fs::create_directories(root_dir + "/refs");
+        fs::create_directories(".mvc");
+        fs::create_directory(".mvc/objects");
+        fs::create_directory(".mvc/refs");
+        fs::create_directory(".mvc/refs/heads");
 
-            std::ofstream head_file(root_dir + "/HEAD");
-            if(head_file.is_open()){
-                head_file << "ref: refs/heads/master\n";
-                head_file.close();
-            }
-            else{
-                std::cerr << "Error: couldn't create HEAD file. \n";
-                return false;
-            }
+        utils::write_file(".mvc/HEAD", "ref: refs/heads/master\n");
 
-            std::cout << "Initialized empty MerkleVC repository in " << fs::absolute(root_dir) << "\n";
-            return true;
-        }
-        else{
-            std::cerr << "Error: failed to create .mvc directory \n";
-            return false;
-        }
+        std::string name, email;
+        std::cout << "Initialized empty MVC repository.\n";
+        std::cout << "--- Author Configuration ---\n";  
+        std::cout << "Enter your Name: ";
+        
+        if (std::cin.peek() == '\n') std::cin.ignore(); 
+        std::getline(std::cin, name);
+
+        std::cout << "Enter your Email: ";
+        std::getline(std::cin, email);
+        
+        if (name.empty()) name = "user";
+        if (email.empty()) email = "user@example.com";
+
+        std::string config_data = name + " <" + email + ">";
+        utils::write_file(".mvc/config", config_data);
+        
+        std::cout << "Identity saved as: " << config_data << "\n";
+        return true;
     }
-    catch(const fs::filesystem_error& e){
-        std::cerr << "Filesystem error: " << e.what() << "\n";
+    catch (const std::exception& e) {
+        std::cerr << "Error initializing repository: " << e.what() << "\n";
         return false;
     }
 
