@@ -6,6 +6,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -83,73 +84,82 @@ void update_head(const std::string& commit_hash) {
     }
 }
 
-std::string commit_tree(const std::string& tree_hash, const std::string& message) {
-    std::string parent_hash = "";
-    std::string head_content = utils::read_file(".mvc/HEAD");
+std::string commit_tree(const std::string& tree_hash,
+    const std::string& message,
+    const std::vector<std::string>& explicit_parent) {
+
+    std::vector<std::string> parents = explicit_parent;
     
-    if (head_content.rfind("ref: ", 0) == 0) {
-        std::string ref_path = ".mvc/" + head_content.substr(5);
-        if (head_content.back() == '\n') ref_path.pop_back();
-        
-        if (std::filesystem::exists(ref_path)) {
-            parent_hash = utils::read_file(ref_path);
-            if (!parent_hash.empty() && parent_hash.back() == '\n') parent_hash.pop_back();
+    if(parents.empty()){
+        std::string head_content = utils::read_file(".mvc/HEAD");
+        std::string parent_hash = "";
+
+
+        if(head_content.rfind("ref: ", 0) == 0){
+            std::string ref_path = ".mvc/" + head_content.substr(5);
+            if(head_content.back() == '\n') head_content.pop_back();
+
+            if(fs::exists(ref_path)){
+                parent_hash = utils::read_file(ref_path);
+            }
         }
-    } else {
-        parent_hash = head_content;
-        if (!parent_hash.empty() && parent_hash.back() == '\n') parent_hash.pop_back();
+        else{
+            parent_hash = head_content;
+        }
+        while (!parent_hash.empty() && isspace(parent_hash.back())) parent_hash.pop_back();
+        
+        if (!parent_hash.empty()) {
+            parents.push_back(parent_hash);
+        }
     }
 
-   
-    std::string author ;
-    if (std::filesystem::exists(".mvc/config")) {
+
+    std::string author;
+    if(fs::exists(".mvc/config")){
         author = utils::read_file(".mvc/config");
         while (!author.empty() && isspace(author.back())) author.pop_back();
-    } else {
-        author = "user <user@example.com>";
     }
+    else{
+        author = "user user@example.com";
+    }
+
     std::string timestamp = get_current_time();
 
-   
     std::stringstream ss;
-    ss << "tree " << tree_hash << "\n";
-    if (!parent_hash.empty()) {
-        ss << "parent " << parent_hash << "\n";
+    ss << "tree " << tree_hash  << "\n";
+
+    for(const auto& p: parents){
+        ss << "parent " << p << "\n";
     }
+
     ss << "author " << author << " " << timestamp << "\n";
     ss << "committer " << author << " " << timestamp << "\n\n";
     ss << message << "\n";
-
-    // to-do: can implement custom set author name and committer. will do maybe.
 
     std::string content = ss.str();
     std::string header = "commit " + std::to_string(content.size()) + '\0';
     std::string store_data = header + content;
 
-   
     std::string commit_hash = utils::sha1(store_data);
     std::string dir = commit_hash.substr(0, 2);
     std::string file = commit_hash.substr(2);
-    std::string object_path = ".mvc/objects/" + dir + "/" + file;
-    
-    if (!fs::exists(".mvc/objects/" + dir)) {
-        fs::create_directories(".mvc/objects/" + dir);
-    }
-    
-    utils::write_file(object_path, utils::compress(store_data));
 
-    
-    if (head_content.rfind("ref: ", 0) == 0) {
+    if (!std::filesystem::exists(".mvc/objects/" + dir)) {
+        std::filesystem::create_directories(".mvc/objects/" + dir);
+    }
+    utils::write_file(".mvc/objects/" + dir + "/" + file, utils::compress(store_data));
+
+    std::string head_content = utils::read_file(".mvc/HEAD");
+    if(head_content.rfind("ref: ", 0) == 0){
         std::string ref_path = ".mvc/" + head_content.substr(5);
-        if (head_content.back() == '\n') ref_path.pop_back();
-        
+        if(head_content.back() == '\n') head_content.pop_back();
+
         utils::write_file(ref_path, commit_hash);
-    } else {
+    }
+    else{
         utils::write_file(".mvc/HEAD", commit_hash);
     }
-
     append_to_global_log(commit_hash, message, author);
-    
     return commit_hash;
 }
 
