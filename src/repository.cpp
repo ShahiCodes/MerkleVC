@@ -59,7 +59,7 @@ std::string write_tree(const std::string& path){
         entries.push_back(tree_entry);
         
         // debug statement
-        std::cout << "DEBUG: Added " << name << " (" << tree_entry.mode << ")\n";
+        // std::cout << "DEBUG: Added " << name << " (" << tree_entry.mode << ")\n";
     }
 
     std::sort(entries.begin(), entries.end(), [](const TreeEntry& a, const TreeEntry& b){

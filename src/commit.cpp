@@ -50,7 +50,6 @@ std::string get_parent_commit() {
     
     if (head_content.back() == '\n') head_content.pop_back();
 
-    //It's a Branch 
     if (head_content.rfind("ref: ", 0) == 0) {
         std::string ref_path = ".mvc/" + head_content.substr(5);
         if (fs::exists(ref_path)) {
@@ -59,7 +58,6 @@ std::string get_parent_commit() {
             return hash;
         }
     } 
-    //  It's a Detached Hash
     else {
         return head_content;
     }
@@ -71,12 +69,9 @@ void update_head(const std::string& commit_hash) {
     std::string ref_path = get_head_ref_path();
     
     if (ref_path.empty()) {
-        // Detached HEAD 
-        // Just update HEAD to point to the new commit directly.
         utils::write_file(".mvc/HEAD", commit_hash);
     } else {
-        // Attached HEAD 
-        // Update the branch pointer file (e.g., .mvc/refs/heads/master)
+
         fs::create_directories(fs::path(ref_path).parent_path());
         
         std::ofstream file(ref_path);
@@ -90,26 +85,33 @@ std::string commit_tree(const std::string& tree_hash,
 
     std::vector<std::string> parents = explicit_parent;
     
-    if(parents.empty()){
+    if (parents.empty()) {
+        // A. Primary Parent (HEAD)
         std::string head_content = utils::read_file(".mvc/HEAD");
         std::string parent_hash = "";
-
-
-        if(head_content.rfind("ref: ", 0) == 0){
+        
+        if (head_content.rfind("ref: ", 0) == 0) {
             std::string ref_path = ".mvc/" + head_content.substr(5);
-            if(head_content.back() == '\n') head_content.pop_back();
-
-            if(fs::exists(ref_path)){
+            if (head_content.back() == '\n') ref_path.pop_back();
+            if (std::filesystem::exists(ref_path)) {
                 parent_hash = utils::read_file(ref_path);
             }
-        }
-        else{
+        } else {
             parent_hash = head_content;
         }
-        while (!parent_hash.empty() && isspace(parent_hash.back())) parent_hash.pop_back();
         
+        while (!parent_hash.empty() && isspace(parent_hash.back())) parent_hash.pop_back();
         if (!parent_hash.empty()) {
             parents.push_back(parent_hash);
+        }
+
+        if (std::filesystem::exists(".mvc/MERGE_HEAD")) {
+            std::string merge_head = utils::read_file(".mvc/MERGE_HEAD");
+            while (!merge_head.empty() && isspace(merge_head.back())) merge_head.pop_back();
+            if (!merge_head.empty()) {
+                parents.push_back(merge_head);
+            }
+            std::filesystem::remove(".mvc/MERGE_HEAD");
         }
     }
 

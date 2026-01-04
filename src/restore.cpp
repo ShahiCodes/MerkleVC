@@ -98,7 +98,7 @@ void restore_blob(const std::string& hash, const std::string& path){
     utils::write_file(path, content);
 
     // DEBUG LINE
-    std::cout << "DEBUG: Restored blob " << hash << " to " << path << std::endl;
+    // std::cout << "DEBUG: Restored blob " << hash << " to " << path << std::endl;
 }
 
 void restore_tree(const std::string& tree_hash, const std::string& current_path){

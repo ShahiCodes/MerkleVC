@@ -7,130 +7,174 @@
 #include <set>
 #include <filesystem>
 #include <algorithm>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
-
-std::string get_graph_parent(const std::string& content) {
-    size_t parent_pos = content.find("\nparent ");
-    if (parent_pos != std::string::npos) {
-        size_t end = content.find('\n', parent_pos + 8);
-        return content.substr(parent_pos + 8, end - (parent_pos + 8));
-    }
-    return ""; 
-}
-
-std::vector<std::string> get_branches_for_commit(const std::string& hash) {
-    std::vector<std::string> branches;
-    
+std::map<std::string, std::string> get_labels() {
+    std::map<std::string, std::string> labels;
     
     std::string head_content = utils::read_file(".mvc/HEAD");
     while (!head_content.empty() && isspace(head_content.back())) head_content.pop_back();
-    
-    std::string current_branch = "";
-    bool is_detached = true;
+    std::string active_branch = "";
+    bool detached = true;
+
     if (head_content.rfind("ref: refs/heads/", 0) == 0) {
-        current_branch = head_content.substr(16); 
-        is_detached = false;
+        active_branch = head_content.substr(16);
+        detached = false;
     }
 
     if (fs::exists(".mvc/refs/heads")) {
         for (const auto& entry : fs::directory_iterator(".mvc/refs/heads")) {
-            std::string branch_name = entry.path().filename().string();
-            std::string branch_hash = utils::read_file(entry.path().string());
-            while (!branch_hash.empty() && isspace(branch_hash.back())) branch_hash.pop_back();
-            
-            if (branch_hash == hash) {
-                if (!is_detached && branch_name == current_branch) {
-                    branches.push_back(branch_name + " \033[1;36m-> HEAD\033[0m"); 
-                } else {
-                    branches.push_back(branch_name);
-                }
+            std::string name = entry.path().filename().string();
+            std::string hash = utils::read_file(entry.path().string());
+            while (!hash.empty() && isspace(hash.back())) hash.pop_back();
+
+            std::string tag = "\033[1;32m" + name + "\033[0m"; 
+            if (!detached && name == active_branch) {
+                tag += " \033[1;36m-> HEAD\033[0m"; 
+            }
+            if (labels.count(hash)) labels[hash] += ", " + tag;
+            else labels[hash] = " (" + tag + ")";
+        }
+    }
+    
+    if (detached && !head_content.empty()) {
+        if (labels.count(head_content)) labels[head_content] += ", \033[1;36mHEAD\033[0m";
+        else labels[head_content] = " (\033[1;36mHEAD\033[0m)";
+    }
+    return labels;
+}
+
+struct CommitInfo {
+    std::vector<std::string> parents;
+    std::string message;
+};
+
+CommitInfo get_commit_info(const std::string& hash) {
+    CommitInfo info;
+    std::string dir = hash.substr(0, 2);
+    std::string file = hash.substr(2);
+    std::string path = ".mvc/objects/" + dir + "/" + file;
+
+    if (!fs::exists(path)) return info;
+
+    std::string content = utils::decompress(utils::read_file(path));
+    
+    std::stringstream ss(content);
+    std::string line;
+    bool in_message = false;
+    
+    while (std::getline(ss, line)) {
+        if (line.empty()) {
+            in_message = true;
+            continue;
+        }
+        
+        if (!in_message) {
+            if (line.rfind("parent ", 0) == 0) {
+                std::string p = line.substr(7);
+                while (!p.empty() && isspace(p.back())) p.pop_back();
+                info.parents.push_back(p);
+            }
+        } else {
+            if (info.message.empty()) {
+                info.message = line;
+                if (info.message.length() > 60) info.message = info.message.substr(0, 57) + "...";
             }
         }
     }
-
-    if (is_detached && head_content == hash) {
-        branches.push_back("\033[1;36mHEAD\033[0m");
-    }
-    
-    return branches;
+    return info;
 }
 
 void print_subtree(const std::string& current_hash, 
-                   const std::map<std::string, std::vector<std::string>>& adj,
+                   const std::map<std::string, std::vector<std::string>>& children_map,
+                   const std::map<std::string, std::string>& labels,
+                   const std::map<std::string, std::string>& messages,
                    const std::string& prefix, 
-                   bool is_last) {
+                   bool is_last,
+                   std::set<std::string>& drawn) { 
     
     std::string marker = is_last ? "└── " : "├── ";
     
-    std::vector<std::string> branches = get_branches_for_commit(current_hash);
-    
-    std::cout << prefix << marker << "\033[33m" << current_hash.substr(0, 7) << "\033[0m"; // Yellow Hash
-    
-    if (!branches.empty()) {
-        std::cout << " (";
-        for (size_t i = 0; i < branches.size(); ++i) {
-            if (branches[i].find("HEAD") != std::string::npos) {
+    bool already_drawn = drawn.count(current_hash);
 
-                 std::cout << "\033[32m" << branches[i] << "\033[0m";
-            } else {
-                std::cout << "\033[32m" << branches[i] << "\033[0m"; 
-            }
-            
-            if (i < branches.size() - 1) std::cout << ", ";
-        }
-        std::cout << ")";
+    std::cout << prefix << marker << "\033[33m" << current_hash.substr(0, 7) << "\033[0m"; 
+    
+    if (already_drawn) {
+        std::cout << " \033[90m(see above)\033[0m\n";
+        return;
     }
+
+    drawn.insert(current_hash);
+
+    if (labels.count(current_hash)) std::cout << labels.at(current_hash);
+    
+    if (messages.count(current_hash)) std::cout << " \033[90m" << messages.at(current_hash) << "\033[0m";
     std::cout << "\n";
 
     std::string child_prefix = prefix + (is_last ? "    " : "│   ");
 
-    if (adj.count(current_hash)) {
-        const auto& children = adj.at(current_hash);
+    if (children_map.count(current_hash)) {
+        const auto& children = children_map.at(current_hash);
         for (size_t i = 0; i < children.size(); ++i) {
-            print_subtree(children[i], adj, child_prefix, i == children.size() - 1);
+            print_subtree(children[i], children_map, labels, messages, child_prefix, i == children.size() - 1, drawn);
         }
     }
 }
 
 void show_graph() {
-    std::map<std::string, std::vector<std::string>> adj; 
-    std::set<std::string> roots; 
-    std::set<std::string> all_commits;
+    std::map<std::string, std::vector<std::string>> children_map;
+    std::map<std::string, std::string> messages;
+    std::set<std::string> visited;
+    std::vector<std::string> queue;
+    
+    if (fs::exists(".mvc/refs/heads")) {
+        for (const auto& entry : fs::directory_iterator(".mvc/refs/heads")) {
+            std::string h = utils::read_file(entry.path().string());
+            while (!h.empty() && isspace(h.back())) h.pop_back();
+            if (!h.empty()) queue.push_back(h);
+        }
+    }
+    std::string head = utils::read_file(".mvc/HEAD");
+    if (head.find("ref:") == std::string::npos && !head.empty()) {
+        while (!head.empty() && isspace(head.back())) head.pop_back();
+        queue.push_back(head);
+    }
 
-    for (const auto& entry : fs::recursive_directory_iterator(".mvc/objects")) {
-        if (fs::is_regular_file(entry)) {
-            std::string hash = entry.path().parent_path().filename().string() + 
-                               entry.path().filename().string();
-            try {
-                std::string content = utils::decompress(utils::read_file(entry.path().string()));
-                if (content.rfind("commit ", 0) != std::string::npos) {
-                    size_t null_pos = content.find('\0');
-                    if (null_pos != std::string::npos) content = content.substr(null_pos + 1);
+    std::set<std::string> roots;
 
-                    all_commits.insert(hash);
-                    std::string parent = get_graph_parent(content);
-                    while (!parent.empty() && isspace(parent.back())) parent.pop_back();
+    while (!queue.empty()) {
+        std::string current = queue.back();
+        queue.pop_back();
 
-                    if (parent.empty()) {
-                        roots.insert(hash);
-                    } else {
-                        adj[parent].push_back(hash);
-                    }
-                }
-            } catch (...) { continue; }
+        if (visited.count(current)) continue;
+        visited.insert(current);
+
+        CommitInfo info = get_commit_info(current);
+        messages[current] = info.message;
+
+        if (info.parents.empty()) {
+            roots.insert(current);
+        } else {
+            for (const auto& p : info.parents) {
+                children_map[p].push_back(current);
+                if (!visited.count(p)) queue.push_back(p);
+            }
         }
     }
 
     if (roots.empty()) {
-        std::cerr << "No commits found.\n";
+        std::cout << "No history found.\n";
         return;
     }
 
+    std::map<std::string, std::string> labels = get_labels();
+    std::set<std::string> drawn; 
+
     std::cout << "Repository Graph:\n";
     for (const auto& root : roots) {
-        print_subtree(root, adj, "", true);
+        print_subtree(root, children_map, labels, messages, "", true, drawn);
         std::cout << "\n";
     }
 }
