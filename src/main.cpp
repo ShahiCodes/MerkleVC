@@ -10,6 +10,7 @@
 #include "checkout.h"
 #include "merge.h"
 #include "graph.h"
+#include "status.h"
 
 
 void print_help();
@@ -204,6 +205,14 @@ int main(int argc, char* argv[]) {
         show_graph();
     }
 
+    else if( command == "status"){
+        show_status();
+    }
+
+    else if (command == "metrics") {
+        utils::print_storage_stats();
+    }
+
     else{
         std::cerr << "unknown command " << command << "\n";
         std::cerr << "run ./mvc --help \n";
@@ -225,12 +234,15 @@ void print_help() {
     std::cout << "   branch                   List all branches.\n";
     std::cout << "   branch <name>            Create a new branch.\n";
     std::cout << "   branch -d <name>         Delete a branch.\n";
+    std::cout << "   checkout <branch>        Switch to a branch.\n";
     std::cout << "   merge <branch>           Merge a branch into the current HEAD.\n";
     std::cout << "   graph                    Visualize the commit history graph.\n";
+    std::cout << "   status                   Show the working directory status.\n";
     std::cout << "   help/-h/--help           Show this help message.\n\n";
 
     std::cout << "Low-Level Commands (Plumbing):\n";
     std::cout << "   write-tree               Compute the tree object for the current directory.\n";
     std::cout << "   hash-object <file>       Compute the object ID for a file and store it.\n";
+    std::cout << "   metrics                  Display storage metrics and compression efficiency.\n";
     std::cout << "\n";
 }

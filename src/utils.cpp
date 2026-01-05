@@ -120,5 +120,45 @@ namespace utils {
         inflateEnd(&zs);
         return outstring;
     }
+
+    void print_storage_stats() {
+        long total_compressed = 0;
+        long total_raw = 0;
+        int object_count = 0;
+
+        if (!fs::exists(".mvc/objects")) {
+             std::cout << "No repository found.\n";
+             return;
+        }
+
+        for (const auto& dir : fs::recursive_directory_iterator(".mvc/objects")) {
+            if (!fs::is_regular_file(dir)) continue;
+            
+            // Get compressed size (disk usage)
+            std::string compressed_content = read_file(dir.path().string());
+            total_compressed += compressed_content.size();
+            
+            // Get raw size (decompressed)
+            try {
+                std::string raw = decompress(compressed_content);
+                total_raw += raw.size();
+                object_count++;
+            } catch (...) {
+                // Ignore corrupt/empty files
+            }
+        }
+
+        if (total_raw == 0) total_raw = 1; // Avoid divide by zero
+
+        double savings = 100.0 * (1.0 - (double)total_compressed / total_raw);
+        
+        std::cout << ">>> METRICS GENERATOR <<<\n";
+        std::cout << "--------------------------------\n";
+        std::cout << "Total Objects:          " << object_count << "\n";
+        std::cout << "Raw Data Size:          " << total_raw << " bytes\n";
+        std::cout << "Actual Disk Usage:      " << total_compressed << " bytes\n";
+        std::cout << "Compression Efficiency: " << (int)savings << "%\n";
+        std::cout << "--------------------------------\n";
+    }
     
 }
