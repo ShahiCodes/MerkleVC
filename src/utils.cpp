@@ -134,11 +134,11 @@ namespace utils {
         for (const auto& dir : fs::recursive_directory_iterator(".mvc/objects")) {
             if (!fs::is_regular_file(dir)) continue;
             
-            // Get compressed size (disk usage)
+            // Get compressed size --> (disk usage)
             std::string compressed_content = read_file(dir.path().string());
             total_compressed += compressed_content.size();
             
-            // Get raw size (decompressed)
+            // Get raw size 
             try {
                 std::string raw = decompress(compressed_content);
                 total_raw += raw.size();

@@ -48,7 +48,7 @@ std::string get_parent_hash(const std::string& commit_hash) {
 
 // Need GE Engines, Delay expected (Avg HAL-LCA moment)
 std::string find_lca(const std::string& commit1, const std::string& commit2) {
-    //solution with the worst possible time complexity for finding LCA
+    
     std::string c1 = clean_hash(commit1);
     std::string c2 = clean_hash(commit2);
     if (c1 == c2) return c1;
