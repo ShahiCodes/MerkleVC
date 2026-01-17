@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         else{
             return 1;
         }
-    }
+    }    
     else if(command == "hash-object"){
         if(args.size() < 2){
             std::cerr << "Usage: mvc hash-object <file_path>\n";
@@ -57,7 +57,6 @@ int main(int argc, char* argv[]) {
     }
     else if (command == "write-tree") {
         try {
-            // Default to "." if no argument provided
             std::string path = ".";
             if (args.size() > 1) {
                 path = args[1];

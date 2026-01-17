@@ -5,7 +5,6 @@
 #include <sstream>
 #include <ctime>
 #include <filesystem>
-#include <fstream>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -29,54 +28,52 @@ void append_to_global_log(const std::string& hash, const std::string& message, s
     }
 }
 
+// Get the full path to the current branch ref file
 std::string get_head_ref_path() {
     std::string head_content = utils::read_file(".mvc/HEAD");
 
-    if(!head_content.empty() && head_content.back() == '\n'){
-        head_content.pop_back();
+    while (!head_content.empty() && isspace(head_content.back())) {
+        head_content.pop_back(); //the fix from previos commit
     }
 
     std::string prefix = "ref: ";
     if(head_content.rfind(prefix, 0) == 0){
         return ".mvc/" + head_content.substr(prefix.size());
     }
-    return "";  
-}
-
-std::string get_parent_commit() {
-    
-    std::string head_content = utils::read_file(".mvc/HEAD");
-    if (head_content.empty()) return "";
-    
-    if (head_content.back() == '\n') head_content.pop_back();
-
-    if (head_content.rfind("ref: ", 0) == 0) {
-        std::string ref_path = ".mvc/" + head_content.substr(5);
-        if (fs::exists(ref_path)) {
-            std::string hash = utils::read_file(ref_path);
-            if (!hash.empty() && hash.back() == '\n') hash.pop_back();
-            return hash;
-        }
-    } 
-    else {
-        return head_content;
-    }
-
-    return "";
+    return ""; 
 }
 
 void update_head(const std::string& commit_hash) {
     std::string ref_path = get_head_ref_path();
     
     if (ref_path.empty()) {
+        // Detached HEAD update HEAD file directly
         utils::write_file(".mvc/HEAD", commit_hash);
     } else {
-
-        fs::create_directories(fs::path(ref_path).parent_path());
-        
-        std::ofstream file(ref_path);
-        file << commit_hash << "\n";
+        // Attached to branch update refs/heads/<branch>
+        if (fs::path(ref_path).has_parent_path()) {
+            fs::create_directories(fs::path(ref_path).parent_path());
+        }
+        utils::write_file(ref_path, commit_hash);
     }
+}
+
+std::string get_parent_commit() {
+    std::string head_content = utils::read_file(".mvc/HEAD");
+    while (!head_content.empty() && isspace(head_content.back())) head_content.pop_back();
+
+    if (head_content.rfind("ref: ", 0) == 0) {
+        std::string ref_path = ".mvc/" + head_content.substr(5);
+        if (fs::exists(ref_path)) {
+            std::string hash = utils::read_file(ref_path);
+            while (!hash.empty() && isspace(hash.back())) hash.pop_back();
+            return hash;
+        }
+    } 
+    else {
+        return head_content;
+    }
+    return "";
 }
 
 std::string commit_tree(const std::string& tree_hash,
@@ -86,35 +83,18 @@ std::string commit_tree(const std::string& tree_hash,
     std::vector<std::string> parents = explicit_parent;
     
     if (parents.empty()) {
-        // A. Primary Parent (HEAD)
-        std::string head_content = utils::read_file(".mvc/HEAD");
-        std::string parent_hash = "";
-        
-        if (head_content.rfind("ref: ", 0) == 0) {
-            std::string ref_path = ".mvc/" + head_content.substr(5);
-            if (head_content.back() == '\n') ref_path.pop_back();
-            if (std::filesystem::exists(ref_path)) {
-                parent_hash = utils::read_file(ref_path);
-            }
-        } else {
-            parent_hash = head_content;
-        }
-        
-        while (!parent_hash.empty() && isspace(parent_hash.back())) parent_hash.pop_back();
-        if (!parent_hash.empty()) {
-            parents.push_back(parent_hash);
-        }
+        std::string p = get_parent_commit();
+        if (!p.empty()) parents.push_back(p);
 
-        if (std::filesystem::exists(".mvc/MERGE_HEAD")) {
+        if (fs::exists(".mvc/MERGE_HEAD")) {
             std::string merge_head = utils::read_file(".mvc/MERGE_HEAD");
             while (!merge_head.empty() && isspace(merge_head.back())) merge_head.pop_back();
             if (!merge_head.empty()) {
                 parents.push_back(merge_head);
             }
-            std::filesystem::remove(".mvc/MERGE_HEAD");
+            fs::remove(".mvc/MERGE_HEAD");
         }
     }
-
 
     std::string author;
     if(fs::exists(".mvc/config")){
@@ -122,7 +102,7 @@ std::string commit_tree(const std::string& tree_hash,
         while (!author.empty() && isspace(author.back())) author.pop_back();
     }
     else{
-        author = "user user@example.com";
+        author = "user <user@example.com>";
     }
 
     std::string timestamp = get_current_time();
@@ -146,22 +126,13 @@ std::string commit_tree(const std::string& tree_hash,
     std::string dir = commit_hash.substr(0, 2);
     std::string file = commit_hash.substr(2);
 
-    if (!std::filesystem::exists(".mvc/objects/" + dir)) {
-        std::filesystem::create_directories(".mvc/objects/" + dir);
+    if (!fs::exists(".mvc/objects/" + dir)) {
+        fs::create_directories(".mvc/objects/" + dir);
     }
     utils::write_file(".mvc/objects/" + dir + "/" + file, utils::compress(store_data));
 
-    std::string head_content = utils::read_file(".mvc/HEAD");
-    if(head_content.rfind("ref: ", 0) == 0){
-        std::string ref_path = ".mvc/" + head_content.substr(5);
-        if(head_content.back() == '\n') head_content.pop_back();
-
-        utils::write_file(ref_path, commit_hash);
-    }
-    else{
-        utils::write_file(".mvc/HEAD", commit_hash);
-    }
+    update_head(commit_hash);
+    
     append_to_global_log(commit_hash, message, author);
     return commit_hash;
 }
-

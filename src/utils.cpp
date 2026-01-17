@@ -20,6 +20,16 @@ namespace utils {
         buffer << file.rdbuf();
         return buffer.str();
     }
+        // the rdbuf() function for an std::ifstream returns a pointer to the 
+        // underlying stream buffer object associated with the input file stream.
+        // The stream buffer, specifically a std::filebuf for ifstream, is the low-level
+        // responsible for the actual I/O oprtns. [it uses arrays in multiple rounds, doesnt read at once]
+        // rdbuf() provides direct access to this buffer, allowing for efficient reading/writing.
+        // "<<" -- operator is overloaded for stream insertion."
+	    // The read_file returns string for a binary file because std::string is continguous byte
+	    // container. It doesnt use the null terminator as end marker, but rather has the size info
+	    // explicitly stored. So it can hold any binary data including null bytes.
+	    // Thus, string is the safe choice for bianry data.
     void write_file(const std:: string& path, const std::string& data){
         fs::path file_path(path);
         if(file_path.has_parent_path()){
@@ -44,6 +54,15 @@ namespace utils {
         return ss.str();
 
     }
+     
+	    // reinterpret_cast is used to convert pointer types without changing the bit pattern.
+        // used in conversion of pointer types, even if they are unreleted.
+        // Unsafed, but here we know that c_str() gives us a valid pointer to bytes.
+       // std::hex switches the stream to hexadecimal output.
+        // std::setw(2) ensures each byte is printed using exactly two hex digits.
+        // std::setfill('0') pads with a leading 0 when needed.
+        // (int)hash[i] converts the byte to an integer so it prints as a number instead of a character.
+        // The result is appended to the stringstream ss
 
     std::string hex_to_bytes(const std::string& hex){
         std::string bytes;
@@ -53,6 +72,10 @@ namespace utils {
             bytes.push_back(byte);
         }
         return bytes;
+        // strtol (string to long)converts a string representation of a number
+            // into a long int value, can handle whitespace, signs, 
+            // different bases (2-36), and providing an endptr to find where 
+            // the conversion stopped.
     }
 
     std::string compress(const std::string& data){
