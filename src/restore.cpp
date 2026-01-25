@@ -206,6 +206,7 @@ bool restore(const std::string& target_commit_hash){
 
     restore_tree(target_tree_hash, "");
     utils::write_file(".mvc/HEAD", target_commit_hash);
+    // room for optmisation rewriting files that have no changes; 
     std::cout << "Done \n";
 
     return true;

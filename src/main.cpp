@@ -11,13 +11,27 @@
 #include "merge.h"
 #include "graph.h"
 #include "status.h"
+#include "add.h"
 
 
 void print_help();
 
+void clear_index_file() {
+    fs::create_directories(".mvc");
+
+    std::ofstream out(".mvc/global_valid_files.txt",
+                      std::ios::out | std::ios::trunc);
+
+    if (!out) {
+        throw std::runtime_error("Failed to clear index file");
+    }
+}
+
+
 int main(int argc, char* argv[]) {
 
     std::vector<std::string> args;
+
     for(int i = 1; i < argc; i++){
         args.push_back(std::string(argv[i]));
     }
@@ -39,7 +53,7 @@ int main(int argc, char* argv[]) {
         else{
             return 1;
         }
-    }
+    }    
     else if(command == "hash-object"){
         if(args.size() < 2){
             std::cerr << "Usage: mvc hash-object <file_path>\n";
@@ -57,10 +71,9 @@ int main(int argc, char* argv[]) {
     }
     else if (command == "write-tree") {
         try {
-            // Default to "." if no argument provided
-            std::string path = ".";
+            std::vector<fs::path> path = {"."};
             if (args.size() > 1) {
-                path = args[1];
+                path = {(fs::path)args[1]};
             }
             
             std::string hash = write_tree(path);
@@ -71,15 +84,30 @@ int main(int argc, char* argv[]) {
         }
     }
     else if(command == "commit"){
+        std::vector<fs::path> valid_files_for_add;
+
         if (args.size() < 3 || args[1] != "-m"){
             std::cerr << "Usage: mvc commit -m <message>\n";
             return 1;
         }
 
+        std::ifstream in(".mvc/global_valid_files.txt", std::ios::binary);
+
+        std::string path;
+        while(in >> path){
+            valid_files_for_add.push_back((fs::path)path);
+        }
+
+        if(valid_files_for_add.empty()){
+            std::cout << "No files in the staging area. Add files before commiting\n";
+            std::cout << "Usage: ./mvc add <filename1> <filename2>\n";
+            return 0;
+        }
+
         std::string message = args[2];
 
         try{
-            std::string tree_hash = write_tree(".");
+            std::string tree_hash = write_tree(valid_files_for_add);
             std::string commit_hash = commit_tree(tree_hash, message);
 
             std::cout  << "[" << commit_hash << "] " << message << "\n";
@@ -88,6 +116,8 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error: "<< e.what() << "\n";
             return 1;
         }
+
+        clear_index_file();
     }
 
     else if(command == "log"){
@@ -213,6 +243,20 @@ int main(int argc, char* argv[]) {
         utils::print_storage_stats();
     }
 
+    else if(command == "add")
+    {
+        std::vector<std::string> files{};
+        for(int i = 1; i < args.size(); ++i) files.emplace_back(args[i]);
+        
+        if(files.empty()){
+            std::cout << "Error: No files added to the staging area.\n";
+            std::cout << "Usage: ./mvc add <filename1> <filename2>\n"; 
+        }
+        else{
+            add_files(files);
+        }
+    }
+
     else{
         std::cerr << "unknown command " << command << "\n";
         std::cerr << "run ./mvc --help \n";
@@ -227,18 +271,19 @@ void print_help() {
     std::cout << "MerkleVC - A Merkle DAG Version Control System\n";
     std::cout << "Usage: mvc <command> [<args>]\n\n";
     std::cout << "High-Level Commands (Porcelain):\n";
-    std::cout << "   init                     Initialize a new repository in the current directory.\n";
-    std::cout << "   commit -m \"message\"      Snapshot the directory and save it to history.\n";
-    std::cout << "   log                      Display the commit history (hash, author, message).\n";
-    std::cout << "   restore <commit_hash>    Restore the working directory to a specific commit.\n";
-    std::cout << "   branch                   List all branches.\n";
-    std::cout << "   branch <name>            Create a new branch.\n";
-    std::cout << "   branch -d <name>         Delete a branch.\n";
-    std::cout << "   checkout <branch>        Switch to a branch.\n";
-    std::cout << "   merge <branch>           Merge a branch into the current HEAD.\n";
-    std::cout << "   graph                    Visualize the commit history graph.\n";
-    std::cout << "   status                   Show the working directory status.\n";
-    std::cout << "   help/-h/--help           Show this help message.\n\n";
+    std::cout << "   init                               Initialize a new repository in the current directory.\n";
+    std::cout << "   add <dir1/file1> <dir2/file2>      Add files to the staging area before committing.\n";
+    std::cout << "   commit -m \"message\"                Snapshot the directory and save it to history. (Must be done after adding files to the staging area)\n";
+    std::cout << "   log                                Display the commit history (hash, author, message).\n";
+    std::cout << "   restore <commit_hash>              Restore the working directory to a specific commit.\n";
+    std::cout << "   branch                             List all branches.\n";
+    std::cout << "   branch <name>                      Create a new branch.\n";
+    std::cout << "   branch -d <name>                   Delete a branch.\n";
+    std::cout << "   checkout <branch>                  Switch to a branch.\n";
+    std::cout << "   merge <branch>                     Merge a branch into the current HEAD.\n";
+    std::cout << "   graph                              Visualize the commit history graph.\n";
+    std::cout << "   status                             Show the working directory status.\n";
+    std::cout << "   help/-h/--help                     Show this help message.\n\n";
 
     std::cout << "Low-Level Commands (Plumbing):\n";
     std::cout << "   write-tree               Compute the tree object for the current directory.\n";

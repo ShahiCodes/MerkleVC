@@ -17,6 +17,9 @@ namespace utils {
     std::string compress(const std::string& data);
 
     std::string decompress(const std::string& data);
+
+    bool is_ignored(const std::string& name);
+    
     void print_storage_stats();
 
 }

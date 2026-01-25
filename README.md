@@ -1,6 +1,6 @@
 # MerkleVC
 
-[> Skip to TL;DR (Tech Stack & Architecture)](#tldr)
+[> Skip to TL;DR (Tech Stack & Architecture)](https://www.google.com/search?q=%23tldr)
 
 MerkleVC is a file-level version control system built from the ground up in C++. It is based on the fundamental principle of a Merkle Directed Acyclic Graph, where the integrity of the entire repository is guaranteed because every subgraph is a recursive cryptographic hash of its children. By treating the filesystem as a Content-Addressable Storage system rather than a simple hierarchy of files, MerkleVC ensures O(1) deduplication of identical content, efficient zlib-based compression, and extremely low-latency execution for common operations.
 
@@ -15,6 +15,12 @@ The working repository created during it's use is a persistent object store. The
 **Tree Objects** represent the directory structure. A Tree maps filenames to their corresponding Blob hashes or other Tree hashes. Because Trees are hashed based on their content, a change in a deeply nested file ripples up the chain, changing the hash of the Root Tree and ensuring the entire snapshot is unique.
 
 **Commit Objects** provide the context. They wrap a Root Tree hash with metadata (author, timestamp, log message) and crucially, the hash of the parent commit. This linking of parent hashes is what forms the DAG, allowing us to trace history back to the very first transaction.
+
+## Selective Staging and Recursion
+
+MerkleVC employs a precise staging environment to control exactly what goes into a snapshot. Rather than capturing the entire working directory indiscriminately, the system allows users to explicitly target files for the next transaction.
+
+This mechanism is powered by a robust **recursive tracker**. When a directory is targeted, the system automatically traverses the folder structure, indexing all valid nested files and subdirectories. This allows for flexible workflows where users can stage individual files, specific sub-folders, or the entire project in a single command. The system maintains a persistent index of these tracked files, ensuring that subsequent status checks and commits only monitor the content you have explicitly chosen to manage.
 
 ## Low-Level Plumbing
 
@@ -51,22 +57,27 @@ History is rarely a straight line. To make sense of branches, merges, and diverg
 The tool suite is divided into operations for managing state, history, and analysis.
 
 **Repository Management**
+
 * `init`: Initializes a new empty repository and object database.
+* `add`: Stages specific files or entire directories for the next commit, enabling recursive tracking of new content.
 * `status`: Scans the working tree and reports modified, deleted, or untracked files.
 * `metrics`: Displays performance analytics, including object count and compression efficiency.
 
 **History & State**
+
 * `commit`: Captures the staged tree and creates a new commit object.
 * `restore`: Updates a specific file in the working directory to match the version in HEAD.
 * `log`: Prints the linear commit history of the current branch.
 
 **Branching & Merging**
+
 * `branch`: Lists existing branches or creates a new one at the current HEAD.
 * `checkout`: Safely switches the working directory and HEAD pointer to a different branch.
 * `merge`: Integrates a target branch into the current branch using 3-way logic.
 * `graph`: Visualizes the DAG structure of the repository.
 
 **Plumbing**
+
 * `hash-object`: Computes the SHA-1 hash of a file and writes it to the database.
 * `write-tree`: Recursively captures the directory structure as a Tree object.
 
@@ -74,17 +85,18 @@ The tool suite is divided into operations for managing state, history, and analy
 
 You can run MerkleVC on Linux system without needing root access or global installation. The recommended approach is to build the binary locally within the project folder.
 
-1.  Clone the repository to your local machine.
-2.  Run `make` in the project root to compile the `mvc` binary.
-3.  You can now use the system immediately by running `./mvc <command>` (e.g., `./mvc init`) directly inside that folder.
+1. Clone the repository to your local machine.
+2. Run `make` in the project root to compile the `mvc` binary.
+3. You can now use the system immediately by running `./mvc <command>` (e.g., `./mvc init`) directly inside that folder.
 
 There is no need to modify your system's `PATH` or install headers globally. The binary is self-contained and operates strictly within the directory where it is initialized.
 
-***
+---
 
 ## <a name="tldr"></a>TL;DR: Project Summary
 
 ### Tech Stack
+
 * **Language:** C++17 (Standard Template Library, Filesystem API)
 * **Crypto:** OpenSSL (SHA-1 Hashing)
 * **Compression:** Zlib (DEFLATE algorithm)
@@ -92,16 +104,20 @@ There is no need to modify your system's `PATH` or install headers globally. The
 * **Environment:** Linux / POSIX
 
 ### Architecture
+
 * **Merkle DAG:** Uses a directed acyclic graph where every node is uniquely identified by its cryptographic hash.
 * **Content-Addressable Storage:** Files are stored based on their content, not their location, enabling O(1) deduplication.
 * **Object Model:** History is composed of linked `Commit` -> `Tree` -> `Blob` objects.
 
 ### Key Features
+
 * **Sub-millisecond Latency:** Optimized for high-throughput transactional speed.
+* **Recursive Staging:** Smartly indexes nested directories and tracks selected files for committing.
 * **3-Way Merge:** Implements a file level version control system for automatic conflict resolution in divergent branches.
 * **Safety Checks:** Prevent data loss during checkouts.
 * **Visualizer:** Built-in terminal graph renderer to visualize commit topology.
 * **Compression:** Achieves significant reduction in disk usage via transparent zlib compression.
 
 ### License
+
 MIT License

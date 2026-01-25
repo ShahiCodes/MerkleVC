@@ -4,7 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
-#include <cctype> 
+#include <cctype>
+
 
 namespace fs = std::filesystem;
 
