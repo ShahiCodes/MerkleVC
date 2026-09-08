@@ -34,11 +34,9 @@ void collect_head_files(const std::string& raw_tree_hash, const std::string& pre
     if (!fs::exists(path)) return;
     std::string content = utils::decompress(utils::read_file(path));
     
-    // skip Header
     size_t pos = content.find('\0');
     if (pos == std::string::npos) return; 
     pos++;
-    // Parse Binary Entries
     while (pos < content.size()) {
         size_t space_pos = content.find(' ', pos);
         if (space_pos == std::string::npos) break;
@@ -66,7 +64,6 @@ void collect_head_files(const std::string& raw_tree_hash, const std::string& pre
 std::map<std::string, std::string> get_head_state() {
     std::map<std::string, std::string> files;
     
-    // get HEAD commit hsh
     std::string head_content = utils::read_file(".mvc/HEAD");
     while(!head_content.empty() && isspace(head_content.back())) head_content.pop_back();
     
@@ -81,9 +78,8 @@ std::map<std::string, std::string> get_head_state() {
     
     while (!commit_hash.empty() && (isspace(commit_hash.back()) || commit_hash.back() == '\0')) commit_hash.pop_back();
 
-    if (commit_hash.empty()) return files; // Empty repo
+    if (commit_hash.empty()) return files;
 
-    // tree hash from commit
     std::string dir = commit_hash.substr(0, 2);
     std::string file = commit_hash.substr(2);
     std::string path = ".mvc/objects/" + dir + "/" + file;
@@ -116,8 +112,6 @@ void scan_disk(const std::string& current_path, std::map<std::string, std::strin
             
             std::string content = utils::read_file(path);
             std::string hash = utils::sha1(content);
-            // utils::sha1 usually hashes raw string. 
-            // Git hashes "blob size\0content", for status to match repo.cpp, replicating the header logic.
             std::string header = "blob " + std::to_string(content.size()) + '\0';
             std::string full_data = header + content;
             std::string git_hash = utils::sha1(full_data);
@@ -161,6 +155,25 @@ void show_status() {
     }
     
     std::cout << "On branch \033[1;36m" << current_branch << "\033[0m\n\n";
+    if (fs::exists(".mvc/MERGE_HEAD")) {
+        std::cout << "\nYou have unmerged paths.\n";
+        if (fs::exists(".mvc/MERGE_CONFLICTS")) {
+            std::string conf_data = utils::read_file(".mvc/MERGE_CONFLICTS");
+            std::istringstream iss(conf_data);
+            std::string line;
+            std::vector<std::string> files;
+            while (std::getline(iss, line)) {
+                if (!line.empty()) files.push_back(line);
+            }
+            std::cout << "Unmerged files:\n";
+            for (const auto& f : files) {
+                std::cout << "    \033[31m" << f << "\033[0m\n";
+            }
+        } else {
+            std::cout << "  (merge conflicts, no list)\n";
+        }
+        std::cout << "\n";
+    }
 
     if (modified.empty() && deleted.empty() && untracked.empty()) {
         std::cout << "nothing to commit, working tree clean\n";
@@ -179,4 +192,23 @@ void show_status() {
         for (const auto& f : untracked) std::cout << "    \033[31m" << f << "\033[0m\n";
         std::cout << "\n";
     }
+}
+
+bool has_uncommitted_changes() {
+    std::map<std::string, std::string> head_files = get_head_state();
+    std::map<std::string, std::string> disk_files;
+    scan_disk(".", disk_files);
+
+    for (const auto& [path, disk_hash] : disk_files) {
+        if (head_files.count(path)) {
+            if (head_files[path] != disk_hash) {
+                return true;
+            }
+            head_files.erase(path);
+        }
+    }
+    if (!head_files.empty()) {
+        return true;
+    }
+    return false;
 }

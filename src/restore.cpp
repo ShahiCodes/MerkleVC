@@ -97,8 +97,6 @@ void restore_blob(const std::string& hash, const std::string& path){
 
     utils::write_file(path, content);
 
-    // DEBUG LINE
-    // std::cout << "DEBUG: Restored blob " << hash << " to " << path << std::endl;
 }
 
 void restore_tree(const std::string& tree_hash, const std::string& current_path){
@@ -122,19 +120,16 @@ void restore_tree(const std::string& tree_hash, const std::string& current_path)
     // Format: [mode] [name]\0[20-byte-hash]
     size_t cursor = 0;
     while(cursor < body.size()){
-        // Read mode (until space)
         size_t space_pos = body.find(' ', cursor);
         if(space_pos == std::string::npos) break;
         std::string mode = body.substr(cursor, space_pos-cursor);
         cursor = space_pos + 1;
 
-        // Read name (until null)
         size_t null_pos = body.find('\0', cursor);
         if(null_pos == std::string::npos) break;
         std::string name = body.substr(cursor, null_pos-cursor);
         cursor = null_pos + 1;
 
-        // Read Hash (20 bytes)
         std::string raw_hash = body.substr(cursor, 20);
         std::string hash_hex = bytes_to_hex(raw_hash);
         cursor += 20;
@@ -144,12 +139,10 @@ void restore_tree(const std::string& tree_hash, const std::string& current_path)
         full_path += name;
 
         if(mode == "40000"){
-            // Directory
             fs::create_directories(full_path);
             restore_tree(hash_hex, full_path);
         }
         else{
-            // File
             restore_blob(hash_hex, full_path);
         }
 
@@ -170,7 +163,6 @@ bool restore(const std::string& target_commit_hash){
         if (head_content.back() == '\n') head_content.pop_back();
         std::string current_commit_hash;
         
-        // Handle Refs vs Detached
         if (head_content.rfind("ref: ", 0) == 0) {
             std::string ref_path = ".mvc/" + head_content.substr(5);
             if (fs::exists(ref_path)) {
@@ -192,7 +184,6 @@ bool restore(const std::string& target_commit_hash){
     std::set<std::string> target_files;
     collect_files_in_tree(target_tree_hash, "", target_files);
 
-    // Remove files that are in HEAD but not in Target
     for (const auto& file : head_files) {
         if (target_files.find(file) == target_files.end()) {
             if (fs::exists(file)) {
@@ -206,7 +197,6 @@ bool restore(const std::string& target_commit_hash){
 
     restore_tree(target_tree_hash, "");
     utils::write_file(".mvc/HEAD", target_commit_hash);
-    // room for optmisation rewriting files that have no changes; 
     std::cout << "Done \n";
 
     return true;

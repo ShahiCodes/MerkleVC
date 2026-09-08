@@ -8,6 +8,11 @@
 namespace fs = std::filesystem;
 
 void checkout(const std::string& target){
+    if (fs::exists(".mvc/MERGE_HEAD")) {
+        std::cerr << "Error: Cannot checkout while a merge is in progress (MERGE_HEAD exists).\n";
+        std::cerr << "Complete the merge with 'mvc commit' or abort.\n";
+        return;
+    }
     std::string commit_hash ;
     bool is_branch = false;
 
@@ -36,8 +41,6 @@ void checkout(const std::string& target){
             std::cout << "You are in 'detached HEAD' state.\n";
         }
     } else {
-        // If restore failed, do nothing. HEAD is unchanged.
-        // very important HEAD IS UNCHANGED.
         std::cerr << "Checkout failed.\n";
     }
 }

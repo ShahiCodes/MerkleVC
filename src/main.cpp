@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <filesystem>
 #include "repository.h"
 #include "utils.h"
 #include "commit.h"
@@ -32,6 +33,17 @@ int main(int argc, char* argv[]) {
         print_help();
         return 0;
     }
+
+    const bool requires_repository =
+        command == "commit" || command == "log" || command == "restore" ||
+        command == "branch" || command == "checkout" || command == "merge" ||
+        command == "graph" || command == "status" || command == "metrics" ||
+        command == "hash-object" || command == "write-tree";
+    if (requires_repository && !std::filesystem::exists(".mvc")) {
+        std::cerr << "Error: Not a MerkleVC repository. Run './mvc init' first.\n";
+        return 1;
+    }
+
     else if (command == "init"){
         if(init_repository()){
             return 0;
@@ -164,7 +176,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // Safety Guard
         if (!is_work_tree_clean()) {
             std::cerr << "Error: Uncommitted changes. Commit or stash them before checkout.\n";
             return 1;
@@ -183,8 +194,8 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        if (!is_work_tree_clean()) {
-            std::cerr << "Error: Uncommitted changes. Commit or stash them before merging.\n";
+        if (has_uncommitted_changes()) {
+            std::cerr << "Error: Cannot merge with uncommitted changes. Commit or discard changes first.\n";
             return 1;
         }
         std::string branch_name = args[1];
