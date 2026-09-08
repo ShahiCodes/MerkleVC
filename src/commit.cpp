@@ -28,12 +28,11 @@ void append_to_global_log(const std::string& hash, const std::string& message, s
     }
 }
 
-// Get the full path to the current branch ref file
 std::string get_head_ref_path() {
     std::string head_content = utils::read_file(".mvc/HEAD");
 
     while (!head_content.empty() && isspace(head_content.back())) {
-        head_content.pop_back(); //the fix from previos commit
+        head_content.pop_back();
     }
 
     std::string prefix = "ref: ";
@@ -47,10 +46,8 @@ void update_head(const std::string& commit_hash) {
     std::string ref_path = get_head_ref_path();
     
     if (ref_path.empty()) {
-        // Detached HEAD update HEAD file directly
         utils::write_file(".mvc/HEAD", commit_hash);
     } else {
-        // Attached to branch update refs/heads/<branch>
         if (fs::path(ref_path).has_parent_path()) {
             fs::create_directories(fs::path(ref_path).parent_path());
         }
@@ -93,6 +90,9 @@ std::string commit_tree(const std::string& tree_hash,
                 parents.push_back(merge_head);
             }
             fs::remove(".mvc/MERGE_HEAD");
+        }
+        if (fs::exists(".mvc/MERGE_CONFLICTS")) {
+            fs::remove(".mvc/MERGE_CONFLICTS");
         }
     }
 

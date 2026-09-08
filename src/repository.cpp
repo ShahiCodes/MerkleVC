@@ -31,15 +31,13 @@ std::string store_blob(const std::string& path) {
 
 struct TreeEntry {
     std::string name;
-    std::string mode; // "100644" for files, "40000" for dirs
+    std::string mode;
     std::string hash;
 };
 
 std::string write_tree(const std::string& path){
     std::vector<TreeEntry> entries;
     for(const auto& entry : fs::directory_iterator(path)){
-         // directory_iterator iterates over entries in the given directory (non-recursive).
-			// it doesn't open subdirectories
         std::string name = entry.path().filename().string();
 
         if(is_ignored(name)){
@@ -60,14 +58,11 @@ std::string write_tree(const std::string& path){
 
         entries.push_back(tree_entry);
         
-        // debug statement
-        // std::cout << "DEBUG: Added " << name << " (" << tree_entry.mode << ")\n";
     }
 
     std::sort(entries.begin(), entries.end(), [](const TreeEntry& a, const TreeEntry& b){
         return a.name < b.name;
     });
-     //sorting is necessary here to ensure that same tree structure is made for the same input everytime
     std::string tree_body;
     for(const auto& e : entries){
         tree_body += e.mode + " " + e.name + '\0' + utils::hex_to_bytes(e.hash);
@@ -85,8 +80,6 @@ std::string write_tree(const std::string& path){
     return tree_sha1;
 }
 
-//every file is stored in the object directory, only the latest commit hash of a  branch is stored in the 
-			// ref/heads/branch_name file.
 std::string get_tree_from_commit(const std::string& commit_hash){
     if(commit_hash.empty()){
         return "";
